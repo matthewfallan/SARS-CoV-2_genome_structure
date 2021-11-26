@@ -1,0 +1,20 @@
+Coordinates:	29882
+
+Huh7 regions:	71
+Huh7 coverage:	11061
+Huh7 coverage fraction:	0.37
+
+Vero regions:	69
+Vero coverage:	7303
+Vero coverage fraction:	0.244
+
+Ensemble in either model:	15011
+Ensemble in both models:	3353
+Ensemble in Vero only:	3950
+Ensemble in Huh7 only:	7708
+Ensemble in neither model:	14871
+
+Ensemble in either model in ORF1:	11834
+Fraction in either model in ORF1:	0.549
+Ensemble in either model in sgRNA:	3177
+Fraction in either model in sgRNA:	1.421

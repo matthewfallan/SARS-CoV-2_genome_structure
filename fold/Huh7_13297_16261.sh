@@ -1,0 +1,3 @@
+Fold -m 1 -md 350 -dms /lab/solexa_rouskin/projects/mfallan/SARS2_resubmission_210630/fold/Huh7_13297_16261.dms /lab/solexa_rouskin/projects/mfallan/SARS2_resubmission_210630/fold/Huh7_13297_16261.fasta /lab/solexa_rouskin/projects/mfallan/SARS2_resubmission_210630/fold/Huh7_13297_16261.ct
+ct2dot /lab/solexa_rouskin/projects/mfallan/SARS2_resubmission_210630/fold/Huh7_13297_16261.ct ALL /lab/solexa_rouskin/projects/mfallan/SARS2_resubmission_210630/fold/Huh7_13297_16261.dot
+draw -S /lab/solexa_rouskin/projects/mfallan/SARS2_resubmission_210630/fold/Huh7_13297_16261.dms /lab/solexa_rouskin/projects/mfallan/SARS2_resubmission_210630/fold/Huh7_13297_16261.dot /lab/solexa_rouskin/projects/mfallan/SARS2_resubmission_210630/fold/Huh7_13297_16261.ps
