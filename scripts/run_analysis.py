@@ -280,6 +280,9 @@ def benchmark_decoys_single(ct_file, ct_name, ct_start, mus_file, cluster, decoy
             auroc = get_data_structure_agreement("AUROC", decoy_paired, mus_cluster, min_paired=1, min_unpaired=1)
             decoys_metrics[decoy_name] = {"mFMI": mfmi, "AUROC": auroc}
         decoys_metrics = pd.DataFrame.from_dict(decoys_metrics, orient="index")
+        tab_file = plot_file.replace(".pdf", f"_{method}.tab")
+        input(tab_file)
+        decoys_metrics.to_csv(tab_file, sep="\t")
         size = {"refolding": 10.0, "elimination": 2.0}[method]
         color = {"refolding": "#A02060", "elimination": "#A0D0FF"}[method]
         ax.scatter(decoys_metrics["mFMI"], decoys_metrics["AUROC"], s=size, c=color, label=method)
@@ -421,10 +424,10 @@ def benchmark_sars2(shuffles=0):
             all_label_mus, auroc, u_stat, p_val = mu_histogram_paired(
                     f"benchmark_SARS-2_{model}_{region}.pdf".replace(" ", "-"),
                     mus.loc[start: end], paired.loc[start: end], n_bins=50)
-            print(model, region, aurocs[f"{model} {region}"],
-                    np.nanmedian(all_label_mus["paired"]),
-                    np.nanmedian(all_label_mus["unpaired"]),
-                    p_val)
+            for col, col_mus in all_label_mus.items():
+                for label, label_mus in col_mus.items():
+                    fname = f"benchmark_SARS-2_{model}_{region}_{col}_{label}.tab".replace(" ", "-")
+                    label_mus.to_csv(fname, sep="\t")
     return aurocs
 
 
@@ -1023,30 +1026,30 @@ def run_sig_noise(window=100, step=50):
 
 
 if __name__ == "__main__":
-    redo_plot_read_coverage = 1
+    redo_plot_read_coverage = 0
     redo_run_benchmarks = 1
-    redo_sig_noise = 1
-    redo_unpaired_regions = 1
-    redo_dsas_good_clusters = 1
-    redo_roc_subsets = 1
-    redo_write_struct_mus_files = 1
-    redo_compute_mu_correlations_global = 1
-    redo_plot_mu_correlations_global = 1
-    redo_compute_mu_correlations_local = 1
-    redo_plot_mu_correlations_local = 1
-    redo_plot_mus_scatter = 1
+    redo_sig_noise = 0
+    redo_unpaired_regions = 0
+    redo_dsas_good_clusters = 0
+    redo_roc_subsets = 0
+    redo_write_struct_mus_files = 0
+    redo_compute_mu_correlations_global = 0
+    redo_plot_mu_correlations_global = 0
+    redo_compute_mu_correlations_local = 0
+    redo_plot_mu_correlations_local = 0
+    redo_plot_mus_scatter = 0
     redo_plot_paired_unpaired_hist = 1
-    redo_compute_mfmi_global = 1
-    redo_plot_mfmi_global = 1
-    redo_compute_mfmi_local = 1
+    redo_compute_mfmi_global = 0
+    redo_plot_mfmi_global = 0
+    redo_compute_mfmi_local = 0
     redo_plot_mfmi_local = 1
-    redo_compute_dsa_global = 1
-    redo_plot_dsa_global = 1
-    redo_compute_dsas_local = 1
+    redo_compute_dsa_global = 0
+    redo_plot_dsa_global = 0
+    redo_compute_dsas_local = 0
     redo_plot_dsa_local = 1
-    redo_cluster_diffs = 1
-    redo_model_regions = 1
-    redo_genome_wide_clusters_plot = 1
+    redo_cluster_diffs = 0
+    redo_model_regions = 0
+    redo_genome_wide_clusters_plot = 0
     colormap = "RdYlBu"
     colormap_center = 0.5
     colorbar_ticks = np.linspace(0.0, 1.0, 3)
@@ -1111,7 +1114,6 @@ if __name__ == "__main__":
 
     if redo_sig_noise:
         run_sig_noise()
-
 
     # Load all sequences, structures, and mutation rates.
     percentile_ceiling = 99.95
@@ -1357,17 +1359,20 @@ if __name__ == "__main__":
             plt.title(model)
             all_label_mus, auroc, u_stat, p_val = mu_histogram_paired(
                     hist_name, mus[model], paired[model], n_bins=120)
-            print(model, np.nanmedian(all_label_mus["paired"]),
-                         np.nanmedian(all_label_mus["unpaired"]),
-                         u_stat, p_val,
-                         (np.sum(mus[model] <= 0.1)) /
-                         (np.sum(np.logical_not(mus[model].isnull()))))
     hist_name = f"paired-vs-unpaired_Vero-Huh7.pdf"
     if redo_plot_paired_unpaired_hist or not os.path.isfile(hist_name):
         mus_hist = pd.concat([mus["Lan-Vero"], mus["Lan-Huh7"]], axis=1)
         paired_hist = pd.concat([paired["Lan-Vero"], paired["Lan-Huh7"]], axis=1)
-        mu_histogram_paired(hist_name, mus_hist, paired_hist,
+        all_label_mus, auroc, u_stat, p_val = mu_histogram_paired(
+                hist_name, mus_hist, paired_hist,
                 n_bins=250, xmax=0.1, vertical=False, ylabel=None)
+        print("p-value", p_val)
+        input()
+        print("label mus", all_label_mus)
+        for model, model_mus in all_label_mus.items():
+            for label, label_mus in model_mus.items():
+                fname = f"paired-vs-unpaired_Vero-Huh7_{model}-{label}.tab".replace(" ", "-")
+                label_mus.to_csv(fname, sep="\t")
 
     # Compare all the genome-wide structures globally.
     mfmis_global_table = "mfmis_global.tab"
@@ -1406,14 +1411,13 @@ if __name__ == "__main__":
     # Plot the comparison of local structures.
     mfmis_local_plot = "mfmis_local.pdf"
     if redo_plot_mfmi_local or not os.path.isfile(mfmis_local_plot):
-        ref_model = "Lan-Huh7"
-        other_models = ["Lan-Vero", "Manfredonia", "Sun"]
+        mfmi_local_models = ["Lan-Vero", "Huston", "Manfredonia"]
         n_segs = 5
         y_label = "Structure agreement (mFMI)"
         compare_keys = list()
-        for model in other_models:
-            key1 = (ref_model, model)
-            key2 = (model, ref_model)
+        for model1, model2 in itertools.combinations(mfmi_local_models, 2):
+            key1 = (model1, model2)
+            key2 = (model2, model1)
             # Ensure exactly one of key1 or key2 is in the dataset.
             matched_keys = list()
             assert (key1 in mfmis_local) != (key2 in mfmis_local)
@@ -1504,7 +1508,7 @@ if __name__ == "__main__":
         n_segs = 5
         y_label = "Data-structure agreement (AUROC)"
         compare_keys = list()
-        models_dsas_local = ["Lan-Huh7", "Manfredonia", "Sun"]#, "Huston"]
+        models_dsas_local = ["Lan-Vero",  "Huston", "Manfredonia"]
         models_dsas_data = pd.concat([dsas_local[model] 
                 for model in models_dsas_local], axis=1)
         genome_scale_line_plot(models_dsas_data, dsas_local_plot,
@@ -1518,6 +1522,17 @@ if __name__ == "__main__":
     pairs["Rangan"] = Rangan_struct[0]["3pUTR_BSL"]
     paired["Rangan"] = Rangan_struct[1]["3pUTR_BSL"]
     seqs["Rangan"] = Rangan_struct[2]
+    ct_paired = dict()
+    last_pos = 29882
+    paired_to = dict()
+    for model in ["Lan-Huh7", "Lan-Vero", "Manfredonia", "Huston", "Sun", "Rangan"]:
+        paired_to[model] = {i: 0 for i in range(1, last_pos + 1)}
+        for i5, i3 in pairs[model]:
+            paired_to[model][i5] = i3
+            paired_to[model][i3] = i5
+    paired_to = pd.DataFrame(paired_to)
+    paired_to_file = "paired_bases.tab"
+    paired_to.to_csv(paired_to_file, sep="\t")
     # Compute structure similarity between Vero and Rangan, Manfredonia,
     # Huston, and Sun.
     models_3pUTR = ["Lan-Vero", "Manfredonia", "Huston", "Sun", "Rangan"]
@@ -1552,6 +1567,8 @@ if __name__ == "__main__":
         aurocs_3pUTR.loc[model, mus_set] = get_data_structure_agreement("AUROC",
                 paired.loc[Rangan_3pUTR_start: Rangan_3pUTR_end, model],
                 mus.loc[Rangan_3pUTR_start: Rangan_3pUTR_end, mus_set])
+    aurocs_3pUTR_table = "aurocs_3pUTR.tab"
+    aurocs_3pUTR.to_csv(aurocs_3pUTR_table, sep="\t")
     # Plot the AUROC of the 3' UTR structures.
     plot_file = "aurocs_3pUTR.pdf"
     sns.heatmap(aurocs_3pUTR, cmap=colormap, center=0.75,

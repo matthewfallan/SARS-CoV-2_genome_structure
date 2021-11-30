@@ -1,6 +1,5 @@
 """
-Compare our structure predictions to those from Ramya Rangan et al. (2020).
-
+Compare our structure predictions to those from Rangan et al. (2020).
 """
 
 from collections import Counter
@@ -92,7 +91,11 @@ def fmi_mod(dot1, dot2):
     only2 = len(pairs2 - pairs1)
     print(both, only1, only2)
     # compute the Fowlkes-Mallows index
-    fmi = both * ((both + only1) * (both + only2))**-0.5
+    factor = (both + only1) * (both + only2)
+    if factor == 0:
+        fmi = 0.0
+    else:
+        fmi = both * ((both + only1) * (both + only2))**-0.5
     print("unp", f_unp)
     print("fmi", fmi)
     fmi_mod = f_unp + fmi * (1 - f_unp)
@@ -193,7 +196,6 @@ def assemble_structure(directory, prefix, norm_length, max_pair, genome_seq, out
     plt.ylabel("frequency")
     plt.savefig(os.path.join(outdir, f"norm-{norm_length}_max-{max_pair}_bp_length_cmf.pdf"))
     plt.close()
-
     return structure, unpaired_fraction
 
 
@@ -208,8 +210,18 @@ def find_unstructured_regions(structure, min_length, norm_len, max_pair):
     print("# unstructured:", len(unstructured_locations))
 
 
+def find_structured_regions(structure, min_length, norm_len, max_pair):
+    pattern = "[()]{" + str(min_length) + ",}"
+    structured = list(re.finditer(pattern, structure))
+    structured_locations = [(region.start() + 1, region.end()) for region in structured]
+    structured_lengths = [len(region.group()) for region in structured]
+    with open(os.path.join(outdir, f"structured_norm-{norm_len}_max-{max_pair}.csv"), 'w') as f:
+        f.write("first,last\n")
+        f.write("".join([f"{start},{end}\n" for start, end in structured_locations]))
+    print("# structured:", len(structured_locations))
 
-# Compare the full-length genome structure to one of Ramya Rangan's structures
+
+# Compare the full-length genome structure to one of Rangan et al.'s structures
 def compare(genome_seq, genome_struct, rangan_struct, method, norm_len, max_pair):
     n_bases = len(genome_seq)
     assert(n_bases == len(genome_struct))
@@ -268,53 +280,7 @@ def compare(genome_seq, genome_struct, rangan_struct, method, norm_len, max_pair
         agreements_paired_unpaired[window] = agreement_paired_unpaired
         agreements_paired[window] = agreement_paired
         agreements_unpaired[window] = agreement_unpaired
-
-    return bases_num, idents_num, idents, agreements_paired_unpaired, agreements_paired, agreements_unpaired
-
-
-def plot_shannon_entropies(names, starts, ends, norm_len, max_pair, description):
-    n_regions = len(names)
-    assert(n_regions == len(starts) == len(ends))
-    shannon_window = 60
-    shannon_entropy_file = f"/home/mfallan/mfallan_git/RNA_structure/SARS2WholeGenomeAC{shannon_window}nt_Shannon_Entropy_Constraints.csv"
-    data = pd.read_csv(shannon_entropy_file)
-    region_entropies = dict()
-    for region_start, region_end in zip(starts, ends):
-        assert(region_start <= region_end)
-        overlap_values = list()
-        overlap_entropies = list()
-        for center, entropy in zip(data["center"], data["Shannon"]):
-            # determine if the shannon window overlaps with the region
-            shannon_start = center - shannon_window / 2
-            shannon_end = center + shannon_window / 2
-            if shannon_start <= region_end and region_start <= shannon_end:
-                # if so, then determine how many bases overlap
-                order = sorted([shannon_start, shannon_end, region_start, region_end])
-                overlap = order[2] - order[1] + 1
-                overlap_values.append(overlap)
-                overlap_entropies.append(entropy)
-            if shannon_start > region_end:
-                # have already moved past the end of the overlapping windows
-                break
-        if len(overlap_values) == 0:
-            weighted_average_entropy = np.nan
-        else:
-            total_overlap = sum(overlap_values)
-            weighted_average_entropy = sum([ent * over / total_overlap for over, ent in zip(overlap_values, overlap_entropies)])
-        region_entropies[region_start, region_end] = weighted_average_entropy
-    x_vals = np.arange(1, n_regions + 1)
-    y_vals = [region_entropies[window] for window in zip(starts, ends)]
-    plt.bar(x_vals, y_vals)
-    plt.xticks(x_vals, names, rotation=30)
-    plt.xlabel("region")
-    plt.ylabel("Shannon entropy")
-    plt.title("Shannon entropies of genomic regions")
-    fname = os.path.join(outdir, f"shannon_norm-{norm_len}_max-{max_pair}_{description}")
-    plt.savefig(fname + ".pdf")
-    plt.close()
-    with open(fname + ".csv", "w") as f:
-        f.write("Region,Shannon\n")
-        f.write("".join([f"{name},{shannon}\n" for name, shannon in zip(names, y_vals)]))
+    return bases_num, mfmis, idents_num, idents, agreements_paired_unpaired, agreements_paired, agreements_unpaired
 
 
 # Make a delimited file of the sequences and structures of specific regions in the genome
@@ -538,7 +504,7 @@ variants = [8782, 18060]  # 1-indexed
 
 # Read in the structures from Rangan et al.
 print("reading excel file ...")
-rangan_SI = "RNA_genome_conservation_and_secondary_structure_in_SARS-CoV-2_and_SARS-related_viruses_3_SI.xlsx"
+rangan_SI = "RNA_genome_conservation_and_secondary_structure_in_SARS-CoV-2_and_SARS-related_viruses_2_SI.xlsx"
 df_mea = pd.read_excel(io=rangan_SI, sheet_name="MEA Secondary Structures")
 df_rnaz = pd.read_excel(io=rangan_SI, sheet_name="Structured windows (RNAz,P>0.5)")
 df_alifoldz = pd.read_excel(io=rangan_SI, sheet_name="alifoldZ (z<-2.69), RNAz (P>0.9")
@@ -590,7 +556,7 @@ tammy_predictions_opts = {
         #(150, 350): "/lab/solexa_rouskin/Tammy_git/RNA_structure/",
         (150, 120): ("/lab/solexa_rouskin/Tammy_git/RNA_structure/truthmd120", "sars2vivoall_SARS2MN985325WA"),
         (150, 200): ("/lab/solexa_rouskin/Tammy_git/RNA_structure/truthmd200", "sars2vivoall_SARS2MN985325WA"),
-        (150, 350): ("/lab/solexa_rouskin/Tammy_git/RNA_structure/liesmd350", "sars2vivoall_SARS2MN985325WA"),  # folding with DMS constraints, 150 normalization, 350 max base pair, including reactive bases
+        (150, 350): ("/lab/solexa_rouskin/Tammy_git/RNA_structure/truthmd350", "sars2vivoall_SARS2MN985325WA"),  # folding with DMS constraints, 150 normalization, 350 max base pair, including reactive bases
         (0, 350): ("/lab/solexa_rouskin/projects/Tammy/Tammy_corona/chunks_noconstraints", "Chunk"),  # folding without DMS constraints, 350 max base pair
 }
 
@@ -614,6 +580,7 @@ agreements_unpaired_mean = dict()
 # Other parameters
 top_n_similar = 5
 min_length_unstructured = 14
+min_length_structured = 10
 
 
 # Read a file of regions of interest to look at
@@ -644,6 +611,7 @@ for (norm_length, max_pair), (directory, prefix) in tammy_predictions_opts.items
     genome_struct, unpaired_fraction = assemble_structure(directory, prefix, norm_length, max_pair, genome_seq, outdir)
     genome_structs[norm_length, max_pair] = genome_struct
     find_unstructured_regions(genome_struct, min_length_unstructured, norm_length, max_pair)
+    find_structured_regions(genome_struct, min_length_structured, norm_length, max_pair)
     for method, rangan_struct in {"RNAz": dict_rnaz, "ContraFold": dict_mea}.items():
         print("Method:", method)
         tag = (norm_length, max_pair, method)
@@ -668,9 +636,9 @@ for (norm_length, max_pair), (directory, prefix) in tammy_predictions_opts.items
         print(bases_num_sum[tag], idents_num_sum[tag], idents_mean[tag], agreements_paired_unpaired_mean[tag], agreements_paired_mean[tag], agreements_unpaired_mean[tag])
         # Compare regions of interest
         for description in regions_of_interest:
+            continue #FIXME
             names, firsts, lasts = read_regions_of_interest(description)
             display_compared_regions(names, firsts, lasts, genome_seq, genome_struct, rangan_struct, method, norm_length, max_pair, description)
-            plot_shannon_entropies(names, firsts, lasts, norm_length, max_pair, description)
 
 
 def mutually_exclusive_regions(structure):
